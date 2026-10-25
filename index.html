@@ -1,0 +1,1751 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0f0f1a">
+<title>⭐ StarGift — Telegram Mini App</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+/* ============================================================
+   THEME & RESET
+============================================================ */
+:root{
+  --bg:#0f0f1a; --bg2:#161625; --bg3:#1e1e32; --card:#1a1a2e;
+  --text:#f5f5fa; --hint:#8b8b9e; --border:rgba(255,255,255,.08);
+  --accent:#8b5cf6; --accent2:#ec4899; --gold:#fbbf24; --success:#4ade80; --danger:#ef4444;
+  --common:#9aa4b2; --uncommon:#4ade80; --rare:#3b82f6; --epic:#a855f7;
+  --legendary:#f59e0b; --mythic:#ef4444; --gift:#ec4899;
+  --radius:16px; --radius-sm:10px;
+  --shadow:0 8px 30px rgba(0,0,0,.5);
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  background:radial-gradient(ellipse at top,#1a1a2e 0%,#0f0f1a 60%);
+  color:var(--text);font-size:14px;line-height:1.4;
+  -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit;cursor:pointer;border:none;outline:none;color:inherit}
+input{font-family:inherit;outline:none;border:none}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:3px}
+::-webkit-scrollbar-track{background:transparent}
+.hidden{display:none!important}
+
+/* ============================================================
+   APP LAYOUT
+============================================================ */
+#app{
+  height:100vh;height:100dvh;display:flex;flex-direction:column;
+  max-width:600px;margin:0 auto;position:relative;overflow:hidden;
+}
+#topbar{
+  padding:calc(var(--safe-top) + 12px) 14px 10px;
+  display:flex;align-items:center;gap:10px;
+  background:linear-gradient(180deg,rgba(22,22,37,.95) 0%,rgba(22,22,37,0) 100%);
+  position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
+}
+.avatar{
+  width:40px;height:40px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:16px;color:#fff;flex-shrink:0;
+  box-shadow:0 4px 12px rgba(139,92,246,.4);
+}
+.user-info{flex:1;min-width:0}
+.user-name{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-sub{font-size:11px;color:var(--hint)}
+.balance-chip{
+  display:flex;align-items:center;gap:6px;
+  background:linear-gradient(135deg,rgba(251,191,36,.15),rgba(251,191,36,.05));
+  border:1px solid rgba(251,191,36,.3);
+  padding:7px 12px;border-radius:100px;font-weight:700;font-size:14px;
+  color:var(--gold);white-space:nowrap;flex-shrink:0;
+  transition:transform .2s;
+}
+.balance-chip.bump{transform:scale(1.12)}
+.balance-chip .plus{
+  width:22px;height:22px;border-radius:50%;background:var(--gold);color:#000;
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;
+  margin-left:4px;
+}
+
+main{flex:1;overflow-y:auto;overflow-x:hidden;position:relative;padding-bottom:20px}
+.view{display:none;padding:6px 14px 20px;animation:fadeIn .25s ease}
+.view.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+#bottomnav{
+  display:flex;justify-content:space-around;
+  padding:8px 4px calc(var(--safe-bottom) + 8px);
+  background:rgba(22,22,37,.98);border-top:1px solid var(--border);
+  backdrop-filter:blur(12px);z-index:20;
+}
+.nav-btn{
+  flex:1;background:none;display:flex;flex-direction:column;align-items:center;
+  gap:3px;padding:6px 4px;border-radius:var(--radius-sm);color:var(--hint);
+  font-size:10px;font-weight:600;transition:.2s;position:relative;
+}
+.nav-btn .ico{font-size:20px;line-height:1}
+.nav-btn.active{color:var(--accent)}
+.nav-btn.active .ico{filter:drop-shadow(0 0 8px var(--accent))}
+
+/* ============================================================
+   SECTION HEADERS
+============================================================ */
+.section-title{font-size:17px;font-weight:800;margin:14px 0 10px;display:flex;align-items:center;gap:8px}
+.section-sub{font-size:12px;color:var(--hint);margin:-4px 0 12px}
+
+/* ============================================================
+   CASES GRID
+============================================================ */
+.cases-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.case-card{
+  border-radius:var(--radius);padding:16px 12px;position:relative;
+  overflow:hidden;box-shadow:var(--shadow);border:1px solid rgba(255,255,255,.06);
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  transition:transform .2s;min-height:170px;
+}
+.case-card:active{transform:scale(.98)}
+.case-card::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(circle at 20% 20%,rgba(255,255,255,.18),transparent 55%);
+  pointer-events:none;
+}
+.case-emoji{font-size:42px;line-height:1;filter:drop-shadow(0 4px 8px rgba(0,0,0,.4));position:relative;z-index:1}
+.case-name{font-weight:800;font-size:13px;text-align:center;position:relative;z-index:1}
+.case-price{
+  background:rgba(0,0,0,.35);padding:3px 10px;border-radius:100px;
+  font-size:11px;font-weight:700;position:relative;z-index:1;
+  border:1px solid rgba(255,255,255,.12);
+}
+.case-desc{
+  font-size:10px;text-align:center;opacity:.85;line-height:1.3;
+  min-height:26px;position:relative;z-index:1;
+}
+.btn-open{
+  margin-top:auto;padding:9px 14px;border-radius:var(--radius-sm);
+  background:rgba(255,255,255,.15);font-weight:700;font-size:12px;
+  width:100%;backdrop-filter:blur(6px);position:relative;z-index:1;
+  border:1px solid rgba(255,255,255,.25);transition:.15s;
+}
+.btn-open:not(:disabled):hover{background:rgba(255,255,255,.25)}
+.btn-open:not(:disabled):active{transform:scale(.97)}
+.btn-open:disabled{opacity:.55;cursor:not-allowed}
+
+/* ============================================================
+   INVENTORY
+============================================================ */
+.inv-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.inv-card{
+  background:var(--card);border-radius:var(--radius);padding:14px 10px;
+  border:1px solid var(--border);display:flex;flex-direction:column;
+  align-items:center;gap:6px;position:relative;overflow:hidden;
+  box-shadow:var(--shadow);
+}
+.inv-card.rarity-gift{border-color:rgba(236,72,153,.4);box-shadow:0 0 24px rgba(236,72,153,.15)}
+.inv-emoji{font-size:40px;line-height:1;filter:drop-shadow(0 4px 10px rgba(0,0,0,.4))}
+.inv-name{font-weight:700;font-size:12px;text-align:center}
+.inv-value{font-size:11px;color:var(--gold);font-weight:700}
+.inv-actions{display:flex;gap:6px;width:100%;margin-top:4px}
+.inv-actions button{
+  flex:1;padding:7px 4px;border-radius:8px;font-size:10px;font-weight:700;
+  background:rgba(139,92,246,.2);border:1px solid rgba(139,92,246,.4);
+  transition:.15s;
+}
+.inv-actions button:active{transform:scale(.95)}
+.inv-actions button.danger{
+  background:rgba(74,222,128,.15);border-color:rgba(74,222,128,.4);color:var(--success)
+}
+.empty-state{
+  text-align:center;padding:60px 20px;color:var(--hint);
+}
+.empty-state .big-emoji{font-size:56px;margin-bottom:14px;opacity:.5}
+.empty-state .msg{font-size:14px;font-weight:600;margin-bottom:6px;color:var(--text)}
+.empty-state .sub{font-size:12px}
+
+/* ============================================================
+   PVP
+============================================================ */
+.pvp-intro{
+  background:linear-gradient(135deg,rgba(236,72,153,.15),rgba(139,92,246,.15));
+  border:1px solid rgba(236,72,153,.25);border-radius:var(--radius);
+  padding:18px;text-align:center;margin-bottom:16px;
+}
+.pvp-intro h3{font-size:18px;margin-bottom:6px}
+.pvp-intro p{font-size:12px;color:var(--hint)}
+.bet-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.bet-btn{
+  background:var(--card);border:1px solid var(--border);
+  padding:14px 8px;border-radius:var(--radius-sm);
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  font-weight:800;font-size:14px;transition:.15s;
+}
+.bet-btn .ico{font-size:20px}
+.bet-btn:active{transform:scale(.95)}
+.bet-btn:disabled{opacity:.4}
+.bet-btn:hover:not(:disabled){border-color:var(--accent);background:rgba(139,92,246,.1)}
+.pvp-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.stat-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:14px;text-align:center;
+}
+.stat-num{font-size:22px;font-weight:800;color:var(--accent)}
+.stat-lbl{font-size:11px;color:var(--hint);margin-top:2px}
+
+/* ============================================================
+   TRADE / MARKET
+============================================================ */
+.market-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:18px}
+.market-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:14px 10px;display:flex;flex-direction:column;align-items:center;gap:6px;
+  box-shadow:var(--shadow);
+}
+.market-emoji{font-size:38px;line-height:1}
+.market-name{font-weight:700;font-size:12px;text-align:center}
+.market-price{color:var(--gold);font-weight:800;font-size:13px}
+.btn-buy{
+  width:100%;padding:8px;border-radius:8px;font-weight:700;font-size:11px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));margin-top:4px;
+  transition:.15s;
+}
+.btn-buy:active{transform:scale(.96)}
+.btn-buy:disabled{opacity:.4}
+.sell-list{display:flex;flex-direction:column;gap:8px}
+.sell-row{
+  display:flex;align-items:center;gap:10px;background:var(--card);
+  border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;
+}
+.sell-emoji{font-size:28px;width:40px;text-align:center}
+.sell-info{flex:1;min-width:0}
+.sell-info > div:first-child{font-weight:700;font-size:13px}
+.sell-price{font-size:11px;color:var(--gold);font-weight:700;margin-top:2px}
+.btn-small{
+  padding:8px 14px;border-radius:8px;font-weight:700;font-size:11px;
+  background:rgba(74,222,128,.15);border:1px solid rgba(74,222,128,.4);
+  color:var(--success);
+}
+.btn-small:active{transform:scale(.95)}
+.btn-refresh{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 14px;border-radius:100px;font-size:12px;font-weight:700;
+  background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.4);
+  color:var(--accent);margin-bottom:14px;
+}
+.btn-refresh:active{transform:scale(.95)}
+
+/* ============================================================
+   PROFILE
+============================================================ */
+.profile-card{
+  background:linear-gradient(135deg,rgba(139,92,246,.2),rgba(236,72,153,.2));
+  border:1px solid rgba(139,92,246,.3);border-radius:var(--radius);
+  padding:20px;text-align:center;margin-bottom:16px;
+}
+.profile-avatar{
+  width:72px;height:72px;border-radius:50%;margin:0 auto 12px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex;align-items:center;justify-content:center;
+  font-size:30px;font-weight:800;box-shadow:0 8px 24px rgba(139,92,246,.4);
+}
+.profile-name{font-size:18px;font-weight:800;margin-bottom:4px}
+.profile-id{font-size:12px;color:var(--hint)}
+.profile-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}
+.pstat{background:rgba(0,0,0,.25);padding:10px 6px;border-radius:10px}
+.pstat-num{font-size:18px;font-weight:800;color:var(--gold)}
+.pstat-lbl{font-size:10px;color:var(--hint);margin-top:2px}
+.menu-block{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  overflow:hidden;margin-bottom:14px;
+}
+.menu-row{
+  display:flex;align-items:center;gap:12px;padding:14px 16px;
+  border-bottom:1px solid var(--border);font-size:14px;
+}
+.menu-row:last-child{border-bottom:none}
+.menu-row .mico{font-size:18px;width:24px;text-align:center}
+.menu-row .mlabel{flex:1;font-weight:600}
+.menu-row .mvalue{font-size:12px;color:var(--hint)}
+.menu-row.clickable{cursor:pointer;transition:.15s}
+.menu-row.clickable:active{background:rgba(255,255,255,.04)}
+.btn-primary{
+  padding:12px 20px;border-radius:12px;font-weight:800;font-size:14px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  box-shadow:0 4px 16px rgba(139,92,246,.35);transition:.15s;
+  display:block;width:100%;
+}
+.btn-primary:active{transform:scale(.97)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-secondary{
+  padding:12px 20px;border-radius:12px;font-weight:800;font-size:14px;
+  background:rgba(255,255,255,.08);border:1px solid var(--border);transition:.15s;
+  display:block;width:100%;
+}
+.btn-secondary:active{transform:scale(.97)}
+.promo-row{display:flex;gap:8px;padding:14px 16px}
+.promo-row input{
+  flex:1;background:rgba(0,0,0,.3);border:1px solid var(--border);
+  padding:11px 14px;border-radius:10px;color:var(--text);font-size:14px;
+  letter-spacing:1px;text-transform:uppercase;
+}
+.promo-row input:focus{border-color:var(--accent)}
+.promo-row button{
+  padding:0 18px;border-radius:10px;font-weight:800;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+}
+
+/* ============================================================
+   MODALS
+============================================================ */
+.modal{
+  position:fixed;inset:0;z-index:100;display:none;
+  background:rgba(0,0,0,.75);backdrop-filter:blur(8px);
+  align-items:center;justify-content:center;padding:20px;
+}
+.modal.active{display:flex;animation:fadeIn .2s ease}
+.modal-content{
+  background:linear-gradient(180deg,var(--bg2),var(--bg));
+  border:1px solid var(--border);border-radius:20px;
+  padding:24px 18px;max-width:500px;width:100%;
+  max-height:90vh;overflow-y:auto;position:relative;
+  box-shadow:0 20px 60px rgba(0,0,0,.7);
+  animation:modalIn .3s cubic-bezier(.2,1,.3,1);
+}
+@keyframes modalIn{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+.modal-close{
+  position:absolute;top:12px;right:12px;width:32px;height:32px;
+  border-radius:50%;background:rgba(255,255,255,.08);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;color:var(--hint);z-index:5;
+}
+.modal-close:active{background:rgba(255,255,255,.15)}
+.modal-title{
+  font-size:18px;font-weight:800;text-align:center;margin-bottom:4px;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.modal-sub{text-align:center;font-size:12px;color:var(--hint);margin-bottom:18px}
+
+/* ============================================================
+   CASE SPINNER
+============================================================ */
+.spinner-wrap{
+  position:relative;height:120px;overflow:hidden;
+  border-radius:14px;background:rgba(0,0,0,.4);
+  border:1px solid var(--border);margin-bottom:18px;
+}
+.spinner-wrap::before,.spinner-wrap::after{
+  content:'';position:absolute;top:0;bottom:0;width:50px;z-index:3;pointer-events:none;
+}
+.spinner-wrap::before{left:0;background:linear-gradient(90deg,var(--bg2),transparent)}
+.spinner-wrap::after{right:0;background:linear-gradient(270deg,var(--bg2),transparent)}
+.spinner-center{
+  position:absolute;left:50%;top:0;bottom:0;width:3px;
+  background:linear-gradient(180deg,transparent,var(--gold),transparent);
+  transform:translateX(-50%);z-index:4;pointer-events:none;
+  box-shadow:0 0 16px var(--gold);
+}
+.case-spinner{
+  display:flex;height:100%;align-items:center;will-change:transform;
+}
+.spin-item{
+  flex-shrink:0;width:90px;height:100%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:6px;padding:6px 4px;
+  border-right:1px solid rgba(255,255,255,.05);
+}
+.spin-emoji{font-size:32px;line-height:1}
+.spin-name{font-size:10px;text-align:center;color:var(--hint);line-height:1.2;
+  max-height:24px;overflow:hidden}
+
+/* rarity borders for spinner items */
+.rarity-common{box-shadow:inset 0 -3px 0 var(--common)}
+.rarity-uncommon{box-shadow:inset 0 -3px 0 var(--uncommon)}
+.rarity-rare{box-shadow:inset 0 -3px 0 var(--rare)}
+.rarity-epic{box-shadow:inset 0 -3px 0 var(--epic)}
+.rarity-legendary{box-shadow:inset 0 -3px 0 var(--legendary)}
+.rarity-mythic{box-shadow:inset 0 -3px 0 var(--mythic)}
+.rarity-gift{box-shadow:inset 0 -3px 0 var(--gift);background:rgba(236,72,153,.08)}
+
+.case-result{text-align:center;padding-top:4px}
+.result-card{
+  display:inline-flex;flex-direction:column;align-items:center;gap:6px;
+  padding:20px 30px;border-radius:16px;background:var(--card);
+  border:1px solid var(--border);min-width:180px;
+  animation:popIn .5s cubic-bezier(.2,1.6,.4,1);
+}
+@keyframes popIn{0%{transform:scale(.3);opacity:0}60%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
+.result-emoji{font-size:56px;line-height:1;filter:drop-shadow(0 6px 16px rgba(0,0,0,.5))}
+.result-name{font-weight:800;font-size:16px}
+.result-value{color:var(--gold);font-weight:800;font-size:14px}
+.result-note{margin-top:12px;font-size:13px;font-weight:600}
+.result-note.gift-win{color:var(--gift);font-size:14px;font-weight:800}
+.result-actions{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+
+/* ============================================================
+   PVP MODAL
+============================================================ */
+.pvp-search{text-align:center;padding:30px 0}
+.pvp-spinner{
+  width:60px;height:60px;border-radius:50%;margin:0 auto 20px;
+  border:4px solid rgba(139,92,246,.2);border-top-color:var(--accent);
+  animation:spin 1s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pvp-battle{
+  display:flex;align-items:center;gap:12px;justify-content:center;
+  margin-bottom:16px;
+}
+.pvp-side{flex:1;text-align:center}
+.pvp-label{font-size:11px;color:var(--hint);margin-bottom:8px;font-weight:700}
+.pvp-card{
+  background:var(--card);border-radius:14px;padding:16px 8px;
+  border:1px solid var(--border);display:flex;flex-direction:column;
+  align-items:center;gap:4px;
+}
+.pvp-emoji{font-size:36px;line-height:1}
+.pvp-name{font-size:11px;font-weight:700;text-align:center}
+.pvp-val{color:var(--gold);font-weight:800;font-size:12px}
+.pvp-vs{
+  font-size:18px;font-weight:900;color:var(--accent2);
+  text-shadow:0 0 12px var(--accent2);
+}
+.pvp-result{
+  text-align:center;font-size:18px;font-weight:900;margin:16px 0;
+  padding:14px;border-radius:12px;
+}
+.pvp-result.win{color:var(--success);background:rgba(74,222,128,.1)}
+.pvp-result.lose{color:var(--danger);background:rgba(239,68,68,.1)}
+.pvp-result.draw{color:var(--gold);background:rgba(251,191,36,.1)}
+.pvp-actions{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+
+/* ============================================================
+   TOP-UP MODAL
+============================================================ */
+.topup-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
+.topup-opt{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:18px 12px;text-align:center;transition:.15s;
+}
+.topup-opt:active{transform:scale(.96);border-color:var(--accent)}
+.topup-stars{font-size:20px;font-weight:900;color:var(--gold)}
+.topup-price{font-size:11px;color:var(--hint);margin-top:4px}
+.disclaimer{
+  font-size:11px;color:var(--hint);text-align:center;
+  background:rgba(139,92,246,.08);padding:10px;border-radius:10px;
+  margin-top:14px;line-height:1.5;
+}
+
+/* ============================================================
+   TOAST
+============================================================ */
+#toast{
+  position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:rgba(30,30,50,.98);border:1px solid var(--border);
+  padding:12px 20px;border-radius:100px;font-weight:700;font-size:13px;
+  z-index:200;opacity:0;transition:.3s;pointer-events:none;
+  max-width:85vw;text-align:center;box-shadow:var(--shadow);
+  backdrop-filter:blur(12px);
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.success{border-color:rgba(74,222,128,.5);color:var(--success)}
+#toast.error{border-color:rgba(239,68,68,.5);color:var(--danger)}
+
+/* ============================================================
+   RARITY GLOWS (for cards)
+============================================================ */
+.rarity-gift.result-card{background:linear-gradient(135deg,rgba(236,72,153,.2),rgba(139,92,246,.15));border-color:rgba(236,72,153,.5);box-shadow:0 0 32px rgba(236,72,153,.3)}
+.rarity-mythic.result-card{border-color:var(--mythic);box-shadow:0 0 24px rgba(239,68,68,.3)}
+.rarity-legendary.result-card{border-color:var(--legendary);box-shadow:0 0 24px rgba(245,158,11,.3)}
+
+/* ============================================================
+   MISC
+============================================================ */
+.daily-banner{
+  background:linear-gradient(135deg,rgba(251,191,36,.15),rgba(236,72,153,.15));
+  border:1px solid rgba(251,191,36,.3);border-radius:var(--radius);
+  padding:14px 16px;display:flex;align-items:center;gap:12px;margin-bottom:14px;
+}
+.daily-banner .dico{font-size:28px}
+.daily-banner .dtext{flex:1}
+.daily-banner .dtitle{font-weight:800;font-size:14px}
+.daily-banner .dsub{font-size:11px;color:var(--hint)}
+.daily-banner button{
+  padding:9px 16px;border-radius:10px;font-weight:800;font-size:12px;
+  background:var(--gold);color:#000;
+}
+.daily-banner button:disabled{opacity:.4;background:var(--hint)}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- TOP BAR -->
+  <header id="topbar">
+    <div class="avatar" id="avatarEl">?</div>
+    <div class="user-info">
+      <div class="user-name" id="userNameEl">Гость</div>
+      <div class="user-sub" id="userSubEl">Telegram Mini App</div>
+    </div>
+    <div class="balance-chip" id="balanceChip">
+      <span>⭐</span>
+      <span id="balanceEl">0</span>
+      <button class="plus" id="btnTopup">+</button>
+    </div>
+  </header>
+
+  <!-- VIEWS -->
+  <main>
+    <!-- CASES -->
+    <section class="view active" data-view="cases">
+      <div class="daily-banner" id="dailyBanner">
+        <div class="dico">🎁</div>
+        <div class="dtext">
+          <div class="dtitle">Ежедневный бонус</div>
+          <div class="dsub" id="dailySub">Получи 50 ⭐ бесплатно</div>
+        </div>
+        <button id="btnDaily">Забрать</button>
+      </div>
+      <div class="section-title">🎲 Кейсы</div>
+      <div class="section-sub">Открывай кейсы, выбивай Telegram-подарки</div>
+      <div class="cases-grid" id="casesGrid"></div>
+    </section>
+
+    <!-- INVENTORY -->
+    <section class="view" data-view="inventory">
+      <div class="section-title">🎒 Мой инвентарь</div>
+      <div class="section-sub" id="invSub">Здесь хранятся выбитые подарки</div>
+      <div id="inventoryContainer"></div>
+    </section>
+
+    <!-- PVP -->
+    <section class="view" data-view="pvp">
+      <div class="pvp-intro">
+        <h3>⚔️ PvP Дуэли</h3>
+        <p>Сразись с соперником. У кого круче дроп — тот забирает всё.</p>
+      </div>
+      <div class="section-title">Выбери ставку</div>
+      <div class="bet-grid" id="betGrid"></div>
+      <div class="pvp-stats">
+        <div class="stat-card">
+          <div class="stat-num" id="pvpWins">0</div>
+          <div class="stat-lbl">Побед</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="pvpLosses">0</div>
+          <div class="stat-lbl">Поражений</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TRADE -->
+    <section class="view" data-view="trade">
+      <div class="section-title">🛒 Рынок подарков</div>
+      <div class="section-sub">Покупай и продавай подарки за звёзды</div>
+      <button class="btn-refresh" id="btnRefreshMarket">🔄 Обновить предложения</button>
+      <div class="market-grid" id="marketOffers"></div>
+
+      <div class="section-title">💱 Продать свой подарок</div>
+      <div class="section-sub">Мгновенная продажа за 70% стоимости</div>
+      <div class="sell-list" id="marketSell"></div>
+    </section>
+
+    <!-- PROFILE -->
+    <section class="view" data-view="profile">
+      <div class="profile-card">
+        <div class="profile-avatar" id="profileAvatar">?</div>
+        <div class="profile-name" id="profileName">Гость</div>
+        <div class="profile-id" id="profileId">не авторизован</div>
+        <div class="profile-stats">
+          <div class="pstat">
+            <div class="pstat-num" id="statOpened">0</div>
+            <div class="pstat-lbl">Кейсов</div>
+          </div>
+          <div class="pstat">
+            <div class="pstat-num" id="statSpent">0</div>
+            <div class="pstat-lbl">Потрачено ⭐</div>
+          </div>
+          <div class="pstat">
+            <div class="pstat-num" id="statWon">0</div>
+            <div class="pstat-lbl">Выиграно ⭐</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="menu-block">
+        <div class="menu-row">
+          <span class="mico">🎟️</span>
+          <span class="mlabel">Промокод</span>
+        </div>
+        <div class="promo-row">
+          <input type="text" id="promoInput" placeholder="ВВЕДИ КОД" maxlength="20">
+          <button id="btnPromo">OK</button>
+        </div>
+      </div>
+
+      <div class="menu-block">
+        <div class="menu-row clickable" id="menuTopup">
+          <span class="mico">💳</span>
+          <span class="mlabel">Пополнить звёзды</span>
+          <span class="mvalue">›</span>
+        </div>
+        <div class="menu-row">
+          <span class="mico">🎟️</span>
+          <span class="mlabel">Попыток промокейса</span>
+          <span class="mvalue" id="promoAttemptsEl">0</span>
+        </div>
+        <div class="menu-row">
+          <span class="mico">📦</span>
+          <span class="mlabel">Подарков в инвентаре</span>
+          <span class="mvalue" id="invCountEl">0</span>
+        </div>
+      </div>
+
+      <div class="menu-block">
+        <div class="menu-row">
+          <span class="mico">ℹ️</span>
+          <span class="mlabel">О приложении</span>
+          <span class="mvalue">v1.0</span>
+        </div>
+        <div class="menu-row">
+          <span class="mico">🔒</span>
+          <span class="mlabel">Данные хранятся локально</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- BOTTOM NAV -->
+  <nav id="bottomnav">
+    <button class="nav-btn active" data-nav="cases"><span class="ico">🎲</span><span>Кейсы</span></button>
+    <button class="nav-btn" data-nav="inventory"><span class="ico">🎒</span><span>Инвентарь</span></button>
+    <button class="nav-btn" data-nav="pvp"><span class="ico">⚔️</span><span>PvP</span></button>
+    <button class="nav-btn" data-nav="trade"><span class="ico">🛒</span><span>Трейд</span></button>
+    <button class="nav-btn" data-nav="profile"><span class="ico">👤</span><span>Профиль</span></button>
+  </nav>
+</div>
+
+<!-- ===== CASE MODAL ===== -->
+<div class="modal" id="caseModal">
+  <div class="modal-content">
+    <button class="modal-close" id="caseCloseBtn">✕</button>
+    <div class="modal-title">
+      <span id="caseModalEmoji">🎁</span>
+      <span id="caseModalTitle">Кейс</span>
+    </div>
+    <div class="modal-sub">Открываем...</div>
+    <div class="spinner-wrap">
+      <div class="spinner-center"></div>
+      <div class="case-spinner" id="caseSpinner"></div>
+    </div>
+    <div class="case-result hidden" id="caseResult"></div>
+  </div>
+</div>
+
+<!-- ===== PVP MODAL ===== -->
+<div class="modal" id="pvpModal">
+  <div class="modal-content">
+    <button class="modal-close" id="pvpCloseBtn">✕</button>
+    <div class="modal-title">⚔️ PvP Дуэль</div>
+    <div id="pvpContent"></div>
+  </div>
+</div>
+
+<!-- ===== TOPUP MODAL ===== -->
+<div class="modal" id="topupModal">
+  <div class="modal-content">
+    <button class="modal-close" id="topupCloseBtn">✕</button>
+    <div class="modal-title">💳 Пополнение звёзд</div>
+    <div class="modal-sub">Выбери пакет</div>
+    <div class="topup-grid" id="topupGrid"></div>
+    <div class="disclaimer">
+      ⚠️ Демо-режим. В реальном приложении здесь будет интеграция с Telegram Stars:
+      <code>Bot.createInvoiceLink</code> на бэкенде + <code>tg.openInvoice()</code> на клиенте.
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ================================================================
+   STAR GIFT — Telegram Mini App
+   Single-file demo. All economy is client-side & simulated.
+   For production: add backend (Bot API, initData verification, payments).
+================================================================ */
+(function () {
+  'use strict';
+
+  /* ============================================================
+     CONSTANTS
+  ============================================================ */
+  const ITEMS = {
+    // Stars
+    star1:   { name:'1 звезда',    emoji:'⭐', rarity:'common',    value:1,    type:'stars' },
+    star2:   { name:'2 звезды',    emoji:'⭐', rarity:'common',    value:2,    type:'stars' },
+    star5:   { name:'5 звёзд',     emoji:'🌟', rarity:'uncommon',  value:5,    type:'stars' },
+    star10:  { name:'10 звёзд',    emoji:'🌟', rarity:'rare',      value:10,   type:'stars' },
+    star25:  { name:'25 звёзд',    emoji:'💫', rarity:'epic',      value:25,   type:'stars' },
+    star50:  { name:'50 звёзд',    emoji:'💫', rarity:'legendary', value:50,   type:'stars' },
+    star100: { name:'100 звёзд',   emoji:'🌠', rarity:'legendary', value:100,  type:'stars' },
+    star250: { name:'250 звёзд',   emoji:'🌠', rarity:'mythic',    value:250,  type:'stars' },
+    star500: { name:'500 звёзд',   emoji:'✨', rarity:'mythic',    value:500,  type:'stars' },
+    // Telegram Gifts
+    giftBear:    { name:'Мишка',     emoji:'🧸', rarity:'gift', value:15,   type:'gift', giftId:'bear' },
+    giftRose:    { name:'Роза',      emoji:'🌹', rarity:'gift', value:15,   type:'gift', giftId:'rose' },
+    giftHeart:   { name:'Сердце',    emoji:'❤️', rarity:'gift', value:25,   type:'gift', giftId:'heart' },
+    giftCake:    { name:'Торт',      emoji:'🎂', rarity:'gift', value:50,   type:'gift', giftId:'cake' },
+    giftBouquet: { name:'Букет',     emoji:'💐', rarity:'gift', value:100,  type:'gift', giftId:'bouquet' },
+    giftRing:    { name:'Кольцо',    emoji:'💍', rarity:'gift', value:250,  type:'gift', giftId:'ring' },
+    giftCrown:   { name:'Корона',    emoji:'👑', rarity:'gift', value:500,  type:'gift', giftId:'crown' },
+    giftRocket:  { name:'Ракета',    emoji:'🚀', rarity:'gift', value:1000, type:'gift', giftId:'rocket' },
+    giftDiamond: { name:'Бриллиант', emoji:'💎', rarity:'gift', value:2500, type:'gift', giftId:'diamond' },
+    giftTrophy:  { name:'Кубок',     emoji:'🏆', rarity:'gift', value:5000, type:'gift', giftId:'trophy' },
+  };
+
+  // 10 КЕЙСОВ
+  const CASES = [
+    {
+      id:'free', name:'Бесплатный', emoji:'🎁',
+      price:0, currency:'free', cooldown:60000,
+      color:'linear-gradient(135deg,#4b5563,#1f2937)',
+      desc:'Раз в 60 сек. Микро-шанс на подарок',
+      drops:[
+        { id:'star1', w:700 },
+        { id:'star2', w:250 },
+        { id:'star5', w:45 },
+        { id:'star10', w:4.9 },
+        { id:'giftRose', w:0.08 },
+        { id:'giftHeart', w:0.02 },
+      ]
+    },
+    {
+      id:'promo', name:'Промокодный', emoji:'🎟️',
+      price:0, currency:'promo',
+      color:'linear-gradient(135deg,#a855f7,#6d28d9)',
+      desc:'Только по промокоду',
+      drops:[
+        { id:'star5', w:300 },
+        { id:'star10', w:300 },
+        { id:'star25', w:250 },
+        { id:'star50', w:100 },
+        { id:'star100', w:40 },
+        { id:'star250', w:8 },
+        { id:'giftHeart', w:1 },
+        { id:'giftCake', w:0.5 },
+        { id:'giftBouquet', w:0.1 },
+      ]
+    },
+    {
+      id:'starter', name:'Стартовый', emoji:'🥉',
+      price:1, currency:'stars',
+      color:'linear-gradient(135deg,#a16207,#713f12)',
+      desc:'Первый шаг к большим победам',
+      drops:[
+        { id:'star1', w:450 },
+        { id:'star2', w:300 },
+        { id:'star5', w:200 },
+        { id:'star10', w:45 },
+        { id:'star25', w:4.5 },
+        { id:'giftRose', w:0.4 },
+        { id:'giftBear', w:0.1 },
+      ]
+    },
+    {
+      id:'silver', name:'Серебряный', emoji:'🥈',
+      price:10, currency:'stars',
+      color:'linear-gradient(135deg,#cbd5e1,#475569)',
+      desc:'Больше звёзд за ту же цену',
+      drops:[
+        { id:'star2', w:300 },
+        { id:'star5', w:300 },
+        { id:'star10', w:250 },
+        { id:'star25', w:120 },
+        { id:'star50', w:25 },
+        { id:'star100', w:4 },
+        { id:'giftRose', w:0.7 },
+        { id:'giftHeart', w:0.3 },
+      ]
+    },
+    {
+      id:'gold', name:'Золотой', emoji:'🥇',
+      price:25, currency:'stars',
+      color:'linear-gradient(135deg,#fbbf24,#b45309)',
+      desc:'Золото приносит удачу',
+      drops:[
+        { id:'star5', w:280 },
+        { id:'star10', w:300 },
+        { id:'star25', w:250 },
+        { id:'star50', w:120 },
+        { id:'star100', w:40 },
+        { id:'star250', w:8 },
+        { id:'giftHeart', w:1.5 },
+        { id:'giftCake', w:0.5 },
+      ]
+    },
+    {
+      id:'platinum', name:'Платиновый', emoji:'💠',
+      price:50, currency:'stars',
+      color:'linear-gradient(135deg,#22d3ee,#0e7490)',
+      desc:'Платина — для настоящих игроков',
+      drops:[
+        { id:'star10', w:280 },
+        { id:'star25', w:280 },
+        { id:'star50', w:250 },
+        { id:'star100', w:140 },
+        { id:'star250', w:40 },
+        { id:'star500', w:8 },
+        { id:'giftHeart', w:1.5 },
+        { id:'giftCake', w:1 },
+        { id:'giftBouquet', w:0.5 },
+      ]
+    },
+    {
+      id:'diamond', name:'Алмазный', emoji:'💎',
+      price:100, currency:'stars',
+      color:'linear-gradient(135deg,#60a5fa,#1e40af)',
+      desc:'Алмазы — это серьёзно',
+      drops:[
+        { id:'star25', w:250 },
+        { id:'star50', w:250 },
+        { id:'star100', w:250 },
+        { id:'star250', w:150 },
+        { id:'star500', w:40 },
+        { id:'giftCake', w:2 },
+        { id:'giftBouquet', w:1.5 },
+        { id:'giftRing', w:0.5 },
+      ]
+    },
+    {
+      id:'emerald', name:'Изумрудный', emoji:'💚',
+      price:250, currency:'stars',
+      color:'linear-gradient(135deg,#34d399,#065f46)',
+      desc:'Редкие подарки ждут внутри',
+      drops:[
+        { id:'star50', w:250 },
+        { id:'star100', w:250 },
+        { id:'star250', w:250 },
+        { id:'star500', w:180 },
+        { id:'giftBouquet', w:3 },
+        { id:'giftRing', w:2 },
+        { id:'giftCrown', w:0.5 },
+      ]
+    },
+    {
+      id:'legendary', name:'Легендарный', emoji:'🔱',
+      price:300, currency:'stars',
+      color:'linear-gradient(135deg,#f97316,#9a3412)',
+      desc:'Легенды рождаются здесь',
+      drops:[
+        { id:'star100', w:250 },
+        { id:'star250', w:250 },
+        { id:'star500', w:400 },
+        { id:'giftRing', w:5 },
+        { id:'giftCrown', w:3 },
+        { id:'giftRocket', w:1 },
+      ]
+    },
+    {
+      id:'giftcase', name:'Кейс Подарков', emoji:'🎀',
+      price:1000, currency:'stars',
+      color:'linear-gradient(135deg,#ec4899,#831843)',
+      desc:'Максимальный шанс на подарок (≈7%)',
+      drops:[
+        { id:'star100', w:150 },
+        { id:'star250', w:200 },
+        { id:'star500', w:300 },
+        { id:'giftRing', w:20 },
+        { id:'giftCrown', w:15 },
+        { id:'giftRocket', w:10 },
+        { id:'giftDiamond', w:4 },
+        { id:'giftTrophy', w:1 },
+      ]
+    },
+  ];
+
+  // ПРОМОКОДЫ (все на промокейс + бонусные звёзды)
+  const PROMO_CODES = {
+    'STARTER-100': { attempts:1, stars:100,  desc:'1 прокрутка + 100⭐' },
+    'WELCOME-50':  { attempts:1, stars:50,   desc:'1 прокрутка + 50⭐'  },
+    'BONUS-777':   { attempts:2, stars:77,   desc:'2 прокрутки + 77⭐' },
+    'GIFT-2024':   { attempts:1, stars:200,  desc:'1 прокрутка + 200⭐'},
+    'MEGA-500':    { attempts:3, stars:500,  desc:'3 прокрутки + 500⭐'},
+  };
+
+  const DAILY_BONUS = 50;
+  const DAILY_COOLDOWN = 24 * 60 * 60 * 1000;
+  const TOPUP_PACKS = [
+    { stars:50,   label:'50 ⭐'   },
+    { stars:100,  label:'100 ⭐'  },
+    { stars:250,  label:'250 ⭐'  },
+    { stars:500,  label:'500 ⭐'  },
+    { stars:1000, label:'1000 ⭐' },
+    { stars:2500, label:'2500 ⭐' },
+  ];
+
+  /* ============================================================
+     STATE
+  ============================================================ */
+  const DEFAULT_STATE = {
+    stars: 100,
+    promoAttempts: 0,
+    inventory: [],          // [{ uid, itemId, ts }]
+    usedPromos: [],
+    lastFreeOpen: 0,
+    lastDailyClaim: 0,
+    totalOpened: 0,
+    totalSpent: 0,
+    totalWon: 0,
+    pvpWins: 0,
+    pvpLosses: 0,
+    username: null,
+    firstRun: true,
+  };
+
+  let state = loadState();
+  let isOpening = false;
+  let isPvPActive = false;
+  let marketOffers = [];
+  let caseModalTimer = null;
+  let freeTickTimer = null;
+
+  /* ============================================================
+     STORAGE
+  ============================================================ */
+  function loadState() {
+    try {
+      const raw = localStorage.getItem('stargift_state_v1');
+      if (!raw) return Object.assign({}, DEFAULT_STATE);
+      const parsed = JSON.parse(raw);
+      return Object.assign({}, DEFAULT_STATE, parsed);
+    } catch (e) {
+      return Object.assign({}, DEFAULT_STATE);
+    }
+  }
+  function saveState() {
+    try {
+      localStorage.setItem('stargift_state_v1', JSON.stringify(state));
+    } catch (e) { /* quota or blocked — ignore */ }
+  }
+
+  /* ============================================================
+     HELPERS
+  ============================================================ */
+  function fmt(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 10000) return (n / 1000).toFixed(1) + 'K';
+    return String(n);
+  }
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+  function weightedRandom(drops) {
+    let total = 0;
+    for (const d of drops) total += d.w;
+    let r = Math.random() * total;
+    for (const d of drops) {
+      r -= d.w;
+      if (r <= 0) return d.id;
+    }
+    return drops[drops.length - 1].id;
+  }
+  function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+  function tg() { return (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null; }
+  function haptic(type) {
+    try {
+      const t = tg();
+      if (!t || !t.HapticFeedback) return;
+      if (type === 'light') t.HapticFeedback.impactOccurred('light');
+      else if (type === 'medium') t.HapticFeedback.impactOccurred('medium');
+      else if (type === 'heavy') t.HapticFeedback.impactOccurred('heavy');
+      else if (type === 'success') t.HapticFeedback.notificationOccurred('success');
+      else if (type === 'error') t.HapticFeedback.notificationOccurred('error');
+    } catch (e) { /* noop */ }
+  }
+  function tgAlert(msg) {
+    try {
+      const t = tg();
+      if (t && t.showAlert) { t.showAlert(msg); return; }
+    } catch (e) {}
+    toast(msg);
+  }
+
+  let toastTimer = null;
+  function toast(msg, type) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = '';
+    if (type) el.classList.add(type);
+    // force reflow
+    void el.offsetWidth;
+    el.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.classList.remove('show'); }, 2600);
+  }
+
+  function openModal(id) { document.getElementById(id).classList.add('active'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+  /* ============================================================
+     NAVIGATION
+  ============================================================ */
+  function switchView(name) {
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.dataset.view === name));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.nav === name));
+    if (name === 'inventory') renderInventory();
+    if (name === 'pvp') renderPvP();
+    if (name === 'trade') renderTrade();
+    if (name === 'profile') renderProfile();
+    // scroll top
+    document.querySelector('main').scrollTop = 0;
+  }
+
+  /* ============================================================
+     HEADER RENDER
+  ============================================================ */
+  function renderHeader() {
+    const user = getTgUser();
+    const name = user ? ((user.first_name || 'User') + (user.last_name ? ' ' + user.last_name : '')) : 'Гость';
+    const initial = name.charAt(0).toUpperCase();
+
+    document.getElementById('avatarEl').textContent = initial;
+    document.getElementById('userNameEl').textContent = name;
+    document.getElementById('userSubEl').textContent = user ? '@' + (user.username || 'user') : 'Демо-режим';
+    document.getElementById('balanceEl').textContent = fmt(state.stars);
+
+    // bump animation
+    const chip = document.getElementById('balanceChip');
+    chip.classList.add('bump');
+    setTimeout(() => chip.classList.remove('bump'), 220);
+  }
+
+  function getTgUser() {
+    try {
+      const t = tg();
+      if (t && t.initDataUnsafe && t.initDataUnsafe.user) return t.initDataUnsafe.user;
+    } catch (e) {}
+    return null;
+  }
+
+  /* ============================================================
+     CASES RENDER
+  ============================================================ */
+  function renderCases() {
+    const grid = document.getElementById('casesGrid');
+    grid.innerHTML = '';
+    const now = Date.now();
+
+    CASES.forEach(c => {
+      const card = document.createElement('div');
+      card.className = 'case-card';
+      card.style.background = c.color;
+      card.dataset.case = c.id;
+
+      let canOpen = true;
+      let btnText = 'Открыть';
+      let showTimer = false;
+
+      if (c.currency === 'stars') {
+        if (state.stars < c.price) { canOpen = false; btnText = 'Недостаточно ⭐'; }
+      } else if (c.currency === 'promo') {
+        if (state.promoAttempts <= 0) { canOpen = false; btnText = 'Нужен промокод'; }
+        else btnText = `Открыть (${state.promoAttempts})`;
+      } else if (c.currency === 'free') {
+        const elapsed = now - state.lastFreeOpen;
+        if (elapsed < c.cooldown) {
+          canOpen = false; showTimer = true;
+          btnText = '⏱ ' + Math.ceil((c.cooldown - elapsed) / 1000) + 'с';
+        } else btnText = 'Открыть бесплатно';
+      }
+
+      const priceLabel = c.currency === 'stars' ? `${c.price} ⭐`
+                       : c.currency === 'free' ? 'Бесплатно' : 'По промокоду';
+
+      card.innerHTML = `
+        <div class="case-emoji">${c.emoji}</div>
+        <div class="case-name">${c.name}</div>
+        <div class="case-price">${priceLabel}</div>
+        <div class="case-desc">${c.desc}</div>
+        <button class="btn-open" ${!canOpen ? 'disabled' : ''} data-case-id="${c.id}">${btnText}</button>
+      `;
+
+      const btn = card.querySelector('.btn-open');
+      btn.addEventListener('click', () => {
+        if (btn.disabled || isOpening) return;
+        openCase(c.id);
+      });
+
+      grid.appendChild(card);
+    });
+
+    // tick for free case cooldown
+    if (freeTickTimer) clearInterval(freeTickTimer);
+    freeTickTimer = setInterval(tickFreeCooldown, 1000);
+  }
+
+  function tickFreeCooldown() {
+    const c = CASES.find(x => x.id === 'free');
+    const card = document.querySelector('.case-card[data-case="free"]');
+    if (!c || !card) return;
+    const btn = card.querySelector('.btn-open');
+    const elapsed = Date.now() - state.lastFreeOpen;
+    if (elapsed < c.cooldown) {
+      btn.disabled = true;
+      btn.textContent = '⏱ ' + Math.ceil((c.cooldown - elapsed) / 1000) + 'с';
+    } else if (btn.disabled) {
+      btn.disabled = false;
+      btn.textContent = 'Открыть бесплатно';
+    }
+  }
+
+  /* ============================================================
+     CASE OPENING (ANIMATION + REWARD)
+  ============================================================ */
+  function validateCaseCanOpen(c) {
+    if (c.currency === 'stars' && state.stars < c.price) { toast('Недостаточно звёзд', 'error'); return false; }
+    if (c.currency === 'promo' && state.promoAttempts <= 0) { toast('Введите промокод в профиле', 'error'); return false; }
+    if (c.currency === 'free') {
+      const elapsed = Date.now() - state.lastFreeOpen;
+      if (elapsed < c.cooldown) { toast('Кейс на перезарядке', 'error'); return false; }
+    }
+    return true;
+  }
+
+  async function openCase(caseId) {
+    if (isOpening) return;
+    const c = CASES.find(x => x.id === caseId);
+    if (!c) return;
+    if (!validateCaseCanOpen(c)) return;
+
+    isOpening = true;
+
+    // --- deduct cost ---
+    if (c.currency === 'stars') { state.stars -= c.price; state.totalSpent += c.price; }
+    if (c.currency === 'promo') state.promoAttempts = Math.max(0, state.promoAttempts - 1);
+    if (c.currency === 'free') state.lastFreeOpen = Date.now();
+    state.totalOpened++;
+    saveState();
+    renderHeader();
+    renderCases();
+
+    // --- pick winner ---
+    const winnerId = weightedRandom(c.drops);
+    const winner = ITEMS[winnerId];
+
+    // --- build strip (winner at index 42) ---
+    const WIN_INDEX = 42;
+    const STRIP_LEN = 52;
+    const stripIds = [];
+    for (let i = 0; i < STRIP_LEN; i++) {
+      stripIds.push(i === WIN_INDEX ? winnerId : weightedRandom(c.drops));
+    }
+
+    // --- render modal ---
+    const modal = document.getElementById('caseModal');
+    const spinner = document.getElementById('caseSpinner');
+    const result = document.getElementById('caseResult');
+    document.getElementById('caseModalTitle').textContent = c.name;
+    document.getElementById('caseModalEmoji').textContent = c.emoji;
+    result.classList.add('hidden');
+    result.innerHTML = '';
+
+    spinner.innerHTML = stripIds.map(id => {
+      const it = ITEMS[id];
+      return `<div class="spin-item rarity-${it.rarity}">
+        <div class="spin-emoji">${it.emoji}</div>
+        <div class="spin-name">${it.name}</div>
+      </div>`;
+    }).join('');
+
+    // reset transform
+    spinner.style.transition = 'none';
+    spinner.style.transform = 'translateX(0)';
+    openModal('caseModal');
+    // force layout
+    void spinner.offsetHeight;
+
+    // --- animate ---
+    const ITEM_W = 90;
+    const wrap = spinner.parentElement;
+    const wrapW = wrap.clientWidth || 300;
+    const targetX = WIN_INDEX * ITEM_W + ITEM_W / 2 - wrapW / 2;
+    const jitter = (Math.random() - 0.5) * ITEM_W * 0.7;
+
+    haptic('medium');
+    spinner.style.transition = 'transform 4.2s cubic-bezier(0.15, 0.85, 0.35, 1)';
+    spinner.style.transform = `translateX(-${targetX + jitter}px)`;
+
+    // wait for animation
+    if (caseModalTimer) clearTimeout(caseModalTimer);
+    await new Promise(resolve => {
+      caseModalTimer = setTimeout(resolve, 4300);
+    });
+
+    // --- show result ---
+    haptic('heavy');
+    result.classList.remove('hidden');
+    result.innerHTML = `
+      <div class="result-card rarity-${winner.rarity}">
+        <div class="result-emoji">${winner.emoji}</div>
+        <div class="result-name">${winner.name}</div>
+        <div class="result-value">${winner.value} ⭐</div>
+      </div>
+    `;
+
+    if (winner.type === 'stars') {
+      state.stars += winner.value;
+      state.totalWon += winner.value;
+      saveState();
+      renderHeader();
+      result.innerHTML += `<div class="result-note">➕ ${winner.value} ⭐ на баланс</div>`;
+      // auto-close
+      setTimeout(() => {
+        closeCaseModal();
+      }, 1500);
+    } else if (winner.type === 'gift') {
+      const inst = { uid: uid(), itemId: winnerId, ts: Date.now() };
+      state.inventory.push(inst);
+      saveState();
+      renderInventory();
+
+      result.innerHTML += `
+        <div class="result-note gift-win">🎉 Вы выбили Telegram-подарок!</div>
+        <div class="result-actions">
+          <button class="btn-primary" id="btnGiftSend">📤 Отправить на аккаунт</button>
+          <button class="btn-secondary" id="btnGiftConvert">💱 Перевести в звёзды (${winner.value}⭐)</button>
+        </div>
+      `;
+      document.getElementById('btnGiftSend').addEventListener('click', () => {
+        sendGiftToAccount(inst.uid);
+        closeCaseModal();
+      });
+      document.getElementById('btnGiftConvert').addEventListener('click', () => {
+        convertGiftToStars(inst.uid);
+        closeCaseModal();
+      });
+    }
+
+    isOpening = false;
+    renderCases();
+  }
+
+  function closeCaseModal() {
+    if (isOpening) return; // don't close mid-animation
+    if (caseModalTimer) { clearTimeout(caseModalTimer); caseModalTimer = null; }
+    const spinner = document.getElementById('caseSpinner');
+    spinner.style.transition = 'none';
+    spinner.style.transform = 'translateX(0)';
+    const res = document.getElementById('caseResult');
+    res.classList.add('hidden');
+    res.innerHTML = '';
+    closeModal('caseModal');
+    renderCases();
+  }
+
+  /* ============================================================
+     GIFTS: SEND TO ACCOUNT / CONVERT TO STARS
+  ============================================================ */
+  function sendGiftToAccount(uidVal) {
+    const idx = state.inventory.findIndex(x => x.uid === uidVal);
+    if (idx < 0) { toast('Подарок не найден', 'error'); return; }
+    const inst = state.inventory[idx];
+    const item = ITEMS[inst.itemId];
+
+    // ⚠️ PRODUCTION: здесь нужен вызов бэкенда, который дёрнет Bot API sendGift
+    //    await fetch('/api/send-gift', { method:'POST', body: JSON.stringify({ itemId: item.giftId, uid: ... }) })
+    state.inventory.splice(idx, 1);
+    saveState();
+    renderInventory();
+    haptic('success');
+    toast(`🎁 ${item.name} отправлен на ваш Telegram!`, 'success');
+  }
+
+  function convertGiftToStars(uidVal) {
+    const idx = state.inventory.findIndex(x => x.uid === uidVal);
+    if (idx < 0) { toast('Подарок не найден', 'error'); return; }
+    const inst = state.inventory[idx];
+    const item = ITEMS[inst.itemId];
+    state.inventory.splice(idx, 1);
+    state.stars += item.value;
+    state.totalWon += item.value;
+    saveState();
+    renderInventory();
+    renderHeader();
+    haptic('success');
+    toast(`💱 Обменяно на ${item.value} ⭐`, 'success');
+  }
+
+  /* ============================================================
+     INVENTORY RENDER
+  ============================================================ */
+  function renderInventory() {
+    const container = document.getElementById('inventoryContainer');
+    const sub = document.getElementById('invSub');
+    if (!container) return;
+
+    if (state.inventory.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="big-emoji">🎒</div>
+          <div class="msg">Инвентарь пуст</div>
+          <div class="sub">Открывай кейсы — выбивай подарки</div>
+        </div>`;
+      if (sub) sub.textContent = 'Здесь хранятся выбитые подарки';
+      return;
+    }
+
+    if (sub) sub.textContent = `Всего подарков: ${state.inventory.length}`;
+
+    // sort newest first
+    const items = state.inventory.slice().sort((a, b) => b.ts - a.ts);
+
+    container.innerHTML = '<div class="inv-grid">' + items.map(inst => {
+      const it = ITEMS[inst.itemId];
+      return `<div class="inv-card rarity-${it.rarity}">
+        <div class="inv-emoji">${it.emoji}</div>
+        <div class="inv-name">${it.name}</div>
+        <div class="inv-value">${it.value} ⭐</div>
+        <div class="inv-actions">
+          <button data-act="send" data-uid="${inst.uid}">📤 Отпр.</button>
+          <button class="danger" data-act="sell" data-uid="${inst.uid}">💱 В ⭐</button>
+        </div>
+      </div>`;
+    }).join('') + '</div>';
+
+    container.querySelectorAll('button[data-act]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const act = btn.dataset.act;
+        const u = btn.dataset.uid;
+        if (act === 'send') sendGiftToAccount(u);
+        else if (act === 'sell') convertGiftToStars(u);
+      });
+    });
+  }
+
+  /* ============================================================
+     PVP
+  ============================================================ */
+  const PVP_BETS = [10, 25, 50, 100, 250, 500];
+
+  function renderPvP() {
+    document.getElementById('pvpWins').textContent = state.pvpWins;
+    document.getElementById('pvpLosses').textContent = state.pvpLosses;
+
+    const grid = document.getElementById('betGrid');
+    grid.innerHTML = PVP_BETS.map(bet => {
+      const canAfford = state.stars >= bet;
+      return `<button class="bet-btn" data-bet="${bet}" ${!canAfford ? 'disabled' : ''}>
+        <span class="ico">⚔️</span>
+        <span>${bet} ⭐</span>
+      </button>`;
+    }).join('');
+
+    grid.querySelectorAll('.bet-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const bet = parseInt(btn.dataset.bet, 10);
+        startPvP(bet);
+      });
+    });
+  }
+
+  function startPvP(bet) {
+    if (isPvPActive) return;
+    if (state.stars < bet) { toast('Недостаточно звёзд', 'error'); return; }
+
+    isPvPActive = true;
+    state.stars -= bet;
+    saveState();
+    renderHeader();
+    renderPvP();
+
+    const modal = document.getElementById('pvpModal');
+    const content = document.getElementById('pvpContent');
+
+    content.innerHTML = `
+      <div class="pvp-search">
+        <div class="pvp-spinner"></div>
+        <div>Поиск соперника на <b>${bet} ⭐</b>...</div>
+      </div>
+    `;
+    openModal('pvpModal');
+
+    setTimeout(() => {
+      // bot found
+      const goldCase = CASES.find(x => x.id === 'gold');
+      const playerItemId = weightedRandom(goldCase.drops);
+      const botItemId = weightedRandom(goldCase.drops);
+      const pIt = ITEMS[playerItemId];
+      const bIt = ITEMS[botItemId];
+
+      let result, resultText;
+      if (pIt.value > bIt.value) {
+        state.stars += bet * 2;
+        state.pvpWins++;
+        result = 'win';
+        resultText = `🎉 ПОБЕДА! +${bet} ⭐`;
+      } else if (pIt.value < bIt.value) {
+        state.pvpLosses++;
+        result = 'lose';
+        resultText = `😔 Поражение −${bet} ⭐`;
+      } else {
+        state.stars += bet;
+        result = 'draw';
+        resultText = `🤝 Ничья. Возврат ${bet} ⭐`;
+      }
+      saveState();
+      renderHeader();
+      renderPvP();
+      haptic(result === 'win' ? 'success' : result === 'lose' ? 'error' : 'medium');
+
+      content.innerHTML = `
+        <div class="pvp-battle">
+          <div class="pvp-side">
+            <div class="pvp-label">ВЫ</div>
+            <div class="pvp-card rarity-${pIt.rarity}">
+              <div class="pvp-emoji">${pIt.emoji}</div>
+              <div class="pvp-name">${pIt.name}</div>
+              <div class="pvp-val">${pIt.value} ⭐</div>
+            </div>
+          </div>
+          <div class="pvp-vs">VS</div>
+          <div class="pvp-side">
+            <div class="pvp-label">СОПЕРНИК</div>
+            <div class="pvp-card rarity-${bIt.rarity}">
+              <div class="pvp-emoji">${bIt.emoji}</div>
+              <div class="pvp-name">${bIt.name}</div>
+              <div class="pvp-val">${bIt.value} ⭐</div>
+            </div>
+          </div>
+        </div>
+        <div class="pvp-result ${result}">${resultText}</div>
+        <div class="pvp-actions">
+          <button class="btn-primary" id="pvpAgainBtn" ${state.stars < bet ? 'disabled' : ''}>
+            Ещё раз (${bet}⭐)
+          </button>
+          <button class="btn-secondary" id="pvpCloseResultBtn">Закрыть</button>
+        </div>
+      `;
+
+      isPvPActive = false;
+
+      const again = document.getElementById('pvpAgainBtn');
+      if (again) again.addEventListener('click', () => {
+        closeModal('pvpModal');
+        startPvP(bet);
+      });
+      const closeBtn = document.getElementById('pvpCloseResultBtn');
+      if (closeBtn) closeBtn.addEventListener('click', () => {
+        closeModal('pvpModal');
+      });
+    }, 1800);
+  }
+
+  /* ============================================================
+     TRADE / MARKET
+  ============================================================ */
+  function generateMarketOffers() {
+    const giftPool = Object.keys(ITEMS).filter(k => ITEMS[k].type === 'gift');
+    marketOffers = [];
+    for (let i = 0; i < 6; i++) {
+      const id = giftPool[Math.floor(Math.random() * giftPool.length)];
+      const item = ITEMS[id];
+      const discount = 0.6 + Math.random() * 0.6; // 60%–120% от value
+      const price = Math.max(1, Math.round(item.value * discount));
+      marketOffers.push({ itemId: id, price });
+    }
+  }
+
+  function renderTrade() {
+    if (marketOffers.length === 0) generateMarketOffers();
+
+    const offers = document.getElementById('marketOffers');
+    offers.innerHTML = marketOffers.map((o, i) => {
+      const it = ITEMS[o.itemId];
+      const canAfford = state.stars >= o.price;
+      return `<div class="market-card rarity-${it.rarity}">
+        <div class="market-emoji">${it.emoji}</div>
+        <div class="market-name">${it.name}</div>
+        <div class="market-price">${o.price} ⭐</div>
+        <button class="btn-buy" data-idx="${i}" ${!canAfford ? 'disabled' : ''}>
+          ${canAfford ? 'Купить' : 'Мало ⭐'}
+        </button>
+      </div>`;
+    }).join('');
+
+    offers.querySelectorAll('.btn-buy').forEach(btn => {
+      btn.addEventListener('click', () => buyOffer(parseInt(btn.dataset.idx, 10)));
+    });
+
+    // sell section
+    const sell = document.getElementById('marketSell');
+    if (state.inventory.length === 0) {
+      sell.innerHTML = '<div class="empty-state"><div class="big-emoji">📭</div><div class="sub">Нет подарков для продажи</div></div>';
+    } else {
+      sell.innerHTML = state.inventory.map(inst => {
+        const it = ITEMS[inst.itemId];
+        const sellPrice = Math.max(1, Math.floor(it.value * 0.7));
+        return `<div class="sell-row">
+          <div class="sell-emoji">${it.emoji}</div>
+          <div class="sell-info">
+            <div>${it.name}</div>
+            <div class="sell-price">${sellPrice} ⭐</div>
+          </div>
+          <button class="btn-small" data-sell="${inst.uid}">Продать</button>
+        </div>`;
+      }).join('');
+      sell.querySelectorAll('[data-sell]').forEach(btn => {
+        btn.addEventListener('click', () => sellInventoryItem(btn.dataset.sell));
+      });
+    }
+  }
+
+  function buyOffer(idx) {
+    const offer = marketOffers[idx];
+    if (!offer) return;
+    if (state.stars < offer.price) { toast('Недостаточно звёзд', 'error'); return; }
+    state.stars -= offer.price;
+    state.totalSpent += offer.price;
+    state.inventory.push({ uid: uid(), itemId: offer.itemId, ts: Date.now() });
+    // remove offer
+    marketOffers.splice(idx, 1);
+    // add a new one
+    const giftPool = Object.keys(ITEMS).filter(k => ITEMS[k].type === 'gift');
+    const newId = giftPool[Math.floor(Math.random() * giftPool.length)];
+    const newIt = ITEMS[newId];
+    marketOffers.push({ itemId: newId, price: Math.max(1, Math.round(newIt.value * (0.6 + Math.random() * 0.6))) });
+
+    saveState();
+    renderHeader();
+    renderTrade();
+    haptic('success');
+    toast(`🛒 Куплен ${ITEMS[offer.itemId].name}`, 'success');
+  }
+
+  function sellInventoryItem(uidVal) {
+    const idx = state.inventory.findIndex(x => x.uid === uidVal);
+    if (idx < 0) return;
+    const inst = state.inventory[idx];
+    const it = ITEMS[inst.itemId];
+    const sellPrice = Math.max(1, Math.floor(it.value * 0.7));
+    state.inventory.splice(idx, 1);
+    state.stars += sellPrice;
+    state.totalWon += sellPrice;
+    saveState();
+    renderInventory();
+    renderHeader();
+    renderTrade();
+    haptic('success');
+    toast(`💱 Продан ${it.name} за ${sellPrice} ⭐`, 'success');
+  }
+
+  /* ============================================================
+     PROFILE
+  ============================================================ */
+  function renderProfile() {
+    const user = getTgUser();
+    const name = user ? ((user.first_name || 'User') + (user.last_name ? ' ' + user.last_name : '')) : 'Гость';
+    document.getElementById('profileName').textContent = name;
+    document.getElementById('profileAvatar').textContent = name.charAt(0).toUpperCase() || '?';
+    document.getElementById('profileId').textContent = user && user.id ? 'ID: ' + user.id : 'не авторизован';
+    document.getElementById('statOpened').textContent = fmt(state.totalOpened);
+    document.getElementById('statSpent').textContent = fmt(state.totalSpent);
+    document.getElementById('statWon').textContent = fmt(state.totalWon);
+    document.getElementById('promoAttemptsEl').textContent = state.promoAttempts;
+    document.getElementById('invCountEl').textContent = state.inventory.length;
+  }
+
+  function claimDaily() {
+    const now = Date.now();
+    if (now - state.lastDailyClaim < DAILY_COOLDOWN) {
+      toast('Бонус уже получен', 'error');
+      return;
+    }
+    state.stars += DAILY_BONUS;
+    state.lastDailyClaim = now;
+    state.totalWon += DAILY_BONUS;
+    saveState();
+    renderHeader();
+    updateDailyBanner();
+    haptic('success');
+    toast(`🎁 +${DAILY_BONUS} ⭐ ежедневный бонус!`, 'success');
+  }
+
+  function updateDailyBanner() {
+    const btn = document.getElementById('btnDaily');
+    const sub = document.getElementById('dailySub');
+    if (!btn || !sub) return;
+    const now = Date.now();
+    const elapsed = now - state.lastDailyClaim;
+    if (elapsed < DAILY_COOLDOWN) {
+      btn.disabled = true;
+      btn.textContent = '⏱';
+      const h = Math.floor((DAILY_COOLDOWN - elapsed) / 3600000);
+      const m = Math.floor(((DAILY_COOLDOWN - elapsed) % 3600000) / 60000);
+      sub.textContent = `Следующий через ${h}ч ${m}м`;
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Забрать';
+      sub.textContent = `Получи ${DAILY_BONUS} ⭐ бесплатно`;
+    }
+  }
+
+  function redeemPromo() {
+    const input = document.getElementById('promoInput');
+    if (!input) return;
+    const code = input.value.trim().toUpperCase();
+    if (!code) { toast('Введи промокод', 'error'); return; }
+    if (state.usedPromos.includes(code)) { toast('Этот код уже использован', 'error'); return; }
+    const reward = PROMO_CODES[code];
+    if (!reward) { toast('Неверный промокод', 'error'); return; }
+
+    state.usedPromos.push(code);
+    state.promoAttempts += reward.attempts;
+    state.stars += reward.stars;
+    if (reward.stars) state.totalWon += reward.stars;
+    saveState();
+    renderHeader();
+    renderProfile();
+    renderCases();
+    input.value = '';
+    haptic('success');
+    toast(`✅ Активирован: ${reward.desc}`, 'success');
+  }
+
+  /* ============================================================
+     TOP-UP
+  ============================================================ */
+  function renderTopup() {
+    const grid = document.getElementById('topupGrid');
+    grid.innerHTML = TOPUP_PACKS.map(p => `
+      <div class="topup-opt" data-stars="${p.stars}">
+        <div class="topup-stars">${p.stars} ⭐</div>
+        <div class="topup-price">Демо-платёж</div>
+      </div>
+    `).join('');
+    grid.querySelectorAll('.topup-opt').forEach(el => {
+      el.addEventListener('click', () => {
+        const stars = parseInt(el.dataset.stars, 10);
+        // ⚠️ PRODUCTION: tg.openInvoice(invoiceLink) с реальной ссылкой от бэкенда
+        state.stars += stars;
+        state.totalWon += stars;
+        saveState();
+        renderHeader();
+        renderProfile();
+        closeModal('topupModal');
+        haptic('success');
+        toast(`💳 +${stars} ⭐ зачислено (демо)`, 'success');
+      });
+    });
+  }
+
+  /* ============================================================
+     INIT
+  ============================================================ */
+  function init() {
+    // Telegram setup
+    try {
+      const t = tg();
+      if (t) {
+        t.ready();
+        try { t.expand(); } catch (e) {}
+        try {
+          if (t.setHeaderColor) t.setHeaderColor('#161625');
+          if (t.setBackgroundColor) t.setBackgroundColor('#0f0f1a');
+        } catch (e) {}
+        try { if (t.enableClosingConfirmation) t.enableClosingConfirmation(); } catch (e) {}
+      }
+    } catch (e) { /* not in Telegram */ }
+
+    // save username if any
+    const u = getTgUser();
+    if (u) {
+      state.username = u.username || u.first_name || 'user';
+      saveState();
+    }
+
+    // render everything
+    renderHeader();
+    renderCases();
+    renderInventory();
+    renderPvP();
+    renderTopup();
+    renderProfile();
+    updateDailyBanner();
+    generateMarketOffers();
+    renderTrade();
+
+    // ——— EVENTS ———
+    // Nav
+    document.querySelectorAll('.nav-btn').forEach(b => {
+      b.addEventListener('click', () => switchView(b.dataset.nav));
+    });
+
+    // Topup from header + profile
+    document.getElementById('btnTopup').addEventListener('click', (e) => {
+      e.stopPropagation();
+      openModal('topupModal');
+    });
+    document.getElementById('menuTopup').addEventListener('click', () => {
+      openModal('topupModal');
+    });
+    document.getElementById('topupCloseBtn').addEventListener('click', () => closeModal('topupModal'));
+
+    // Case modal close
+    document.getElementById('caseCloseBtn').addEventListener('click', closeCaseModal);
+
+    // PvP modal close
+    document.getElementById('pvpCloseBtn').addEventListener('click', () => {
+      closeModal('pvpModal');
+      isPvPActive = false;
+    });
+
+    // Daily
+    document.getElementById('btnDaily').addEventListener('click', claimDaily);
+
+    // Promo
+    document.getElementById('btnPromo').addEventListener('click', redeemPromo);
+    document.getElementById('promoInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); redeemPromo(); }
+    });
+
+    // Market refresh
+    document.getElementById('btnRefreshMarket').addEventListener('click', () => {
+      generateMarketOffers();
+      renderTrade();
+      haptic('light');
+      toast('🔄 Предложения обновлены');
+    });
+
+    // Update daily banner periodically
+    setInterval(updateDailyBanner, 30000);
+
+    // Welcome bonus on first run (give 100 stars already in default)
+    if (state.firstRun) {
+      state.firstRun = false;
+      saveState();
+      setTimeout(() => {
+        toast('👋 Добро пожаловать! У тебя 100 ⭐ на старт', 'success');
+      }, 600);
+    }
+  }
+
+  /* ============================================================
+     GO
+  ============================================================ */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  // expose for debugging
+  window.__stargift = { state, saveState, ITEMS, CASES, PROMO_CODES };
+})();
+</script>
+</body>
+</html>
